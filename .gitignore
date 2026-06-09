@@ -1,0 +1,8 @@
+paper_state.json
+paper_trades.csv
+paper_signals.csv
+logs/
+vps_sync/
+__pycache__/
+*.pyc
+data/
