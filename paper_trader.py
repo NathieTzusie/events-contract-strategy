@@ -155,9 +155,37 @@ class PaperTrader:
             if not signal:
                 continue
             
-            # Check expiry is in future
+            # Check expiry — accept recently-expired if exit bar available
             expiry = self._tz(signal.expires_at)
-            if expiry <= now:
+            expiry_ts = pd.Timestamp(str(signal.expires_at))
+            if expiry_ts.tz is None:
+                expiry_ts = expiry_ts.tz_localize("UTC")
+            exit_bars = df[df.index >= expiry_ts]
+            
+            if not exit_bars.empty:
+                # Exit bar available — settle immediately
+                exit_price = float(exit_bars.iloc[0]["close"])
+                won = ((signal.direction == "LONG" and exit_price > signal.entry_price) or
+                       (signal.direction == "SHORT" and exit_price < signal.entry_price))
+                pnl = 60.0 if won else -100.0
+                
+                self.state["stats"]["total"] += 1
+                if won: self.state["stats"]["wins"] += 1
+                else: self.state["stats"]["losses"] += 1
+                self.state["stats"]["pnl"] += pnl
+                
+                emoji = "✅" if won else "❌"
+                print(f"  {emoji} SETTLED {tf} {signal.direction}: {signal.entry_price:.1f}→{exit_price:.1f} "
+                      f"({"WON +60%" if won else "LOST -100%"}) [{signal.rule_name}] (immediate)")
+                
+                self._log_trade({
+                    "id": str(uuid.uuid4())[:8], "tf": tf, "direction": signal.direction,
+                    "entry_time": str(signal.timestamp), "entry_price": signal.entry_price,
+                    "expiry_time": str(signal.expires_at),
+                    "exit_price": exit_price, "rule_name": signal.rule_name,
+                    "confidence": signal.confidence, "status": "won" if won else "lost",
+                    "pnl_pct": pnl, "settled_at": now.isoformat(),
+                })
                 continue
             
             # Cooldown: skip if active position in same TF

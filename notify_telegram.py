@@ -12,9 +12,20 @@ import requests
 
 PROJECT_DIR = Path(__file__).parent.resolve()
 
-# Token — configure here
-TELEGRAM_BOT_TOKEN = "YOUR_BOT_TOKEN_HERE"
-TELEGRAM_CHAT_ID = "5801962948"  # Sisie's chat ID
+# Token — loaded from VPS .env
+import os
+TELEGRAM_BOT_TOKEN = ""
+_env_path = Path(__file__).parent.parent / 'sisie-assistant' / '.env'
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        if '=' in line and not line.startswith('#'):
+            k, _, v = line.partition('=')
+            if k.strip() in ('TELEGRAM_BOT_TOKEN', 'SISIEVPS_BOT_TOKEN'):
+                TELEGRAM_BOT_TOKEN = v.strip()
+                break
+if not TELEGRAM_BOT_TOKEN:
+    TELEGRAM_BOT_TOKEN = os.environ.get('SISIEVPS_BOT_TOKEN', '')
+TELEGRAM_CHAT_ID = "5801962948"
 
 
 def load_trades() -> list:
